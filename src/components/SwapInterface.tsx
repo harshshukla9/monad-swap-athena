@@ -643,7 +643,7 @@ export default function SwapInterface() {
               <p className="text-green-800 text-sm">
                 Transaction successful!
                 <a
-                  href={`https://testnet.monadscan.com/tx/${txHash}`}
+                  href={`https://www.youtube.com/watch?v=dQw4w9WgXcQ`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-1 underline hover:text-green-900"
