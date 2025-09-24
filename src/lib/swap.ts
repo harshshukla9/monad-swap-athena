@@ -240,14 +240,14 @@ export class SwapService {
       console.log('Checking wallet capabilities for EIP-5792...');
       
       // Try to check wallet capabilities (some wallets might not support this method)
-      let capabilities: any = null;
+      let capabilities: Record<string, unknown> | null = null;
       try {
         capabilities = await this.walletClient.request({
           method: 'wallet_getCapabilities',
           params: [],
         });
         console.log('Wallet capabilities:', capabilities);
-      } catch (capError) {
+      } catch {
         console.log('wallet_getCapabilities not supported, proceeding with direct EIP-5792 attempt');
       }
 
@@ -285,7 +285,7 @@ export class SwapService {
       
       // wallet_sendCalls per EIP-5792
       const result = await this.walletClient.request({
-        method: 'wallet_sendCalls' as any,
+        method: 'wallet_sendCalls',
         params: [
           {
             version: '1.0',
@@ -294,42 +294,46 @@ export class SwapService {
             calls,
           },
         ],
-      });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       console.log('EIP-5792 batch transaction successful:', result);
       
       // Handle different return formats
       if (typeof result === 'string') {
         return result as `0x${string}`;
-      } else if (result && typeof result === 'object' && (result as any).hash) {
-        return (result as any).hash as `0x${string}`;
-      } else if (result && typeof result === 'object' && (result as any).bundleId) {
+      } else if (result && typeof result === 'object' && 'hash' in result && typeof result.hash === 'string') {
+        return result.hash as `0x${string}`;
+      } else if (result && typeof result === 'object' && 'bundleId' in result && typeof result.bundleId === 'string') {
         // Some wallets return a bundleId, we'll treat it as the transaction hash
-        return (result as any).bundleId as `0x${string}`;
+        return result.bundleId as `0x${string}`;
       }
       
       throw new Error('Invalid response format from wallet_sendCalls');
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('EIP-5792 error details:', {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        data: error.data
+        name: error && typeof error === 'object' && 'name' in error ? error.name : undefined,
+        message: error && typeof error === 'object' && 'message' in error ? error.message : undefined,
+        code: error && typeof error === 'object' && 'code' in error ? error.code : undefined,
+        data: error && typeof error === 'object' && 'data' in error ? error.data : undefined
       });
       
       // Check for specific error codes that indicate lack of support
+      const errorCode = error && typeof error === 'object' && 'code' in error ? error.code : null;
+      const errorMessage = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : '';
+      
       if (
-        error.code === -32601 || // Method not found
-        error.code === 4200 ||   // Unsupported method
-        error.message?.includes('wallet_sendCalls') ||
-        error.message?.toLowerCase().includes('not supported') ||
-        error.message?.toLowerCase().includes('unknown method')
+        errorCode === -32601 || // Method not found
+        errorCode === 4200 ||   // Unsupported method
+        errorMessage.includes('wallet_sendCalls') ||
+        errorMessage.toLowerCase().includes('not supported') ||
+        errorMessage.toLowerCase().includes('unknown method')
       ) {
         throw new Error('EIP-5792_NOT_SUPPORTED');
       }
       
-      throw new Error(`EIP-5792_FAILED: ${error.message}`);
+      throw new Error(`EIP-5792_FAILED: ${errorMessage || 'Unknown error'}`);
     }
   }
 

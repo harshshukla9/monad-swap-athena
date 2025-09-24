@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
@@ -63,7 +64,7 @@ export default function CaptchaOne({ onSuccess }: CaptchaProps) {
 
             {/* Right side: fake reCAPTCHA branding */}
             <div className="flex flex-col items-center text-[10px] text-gray-500">
-              <img src="./monad.webp" alt="reCAPTCHA" className="w-12 h-8" />
+              <Image src="/monad.webp" alt="reCAPTCHA" width={48} height={32} className="w-12 h-8" />
               <span className="mt-1">reCAPTCHA</span>
               <span className="text-[9px]">Privacy - Terms</span>
             </div>
