@@ -2,24 +2,26 @@ import SwapInterface from '@/components/SwapInterface';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed relative" style={{backgroundImage: 'url(/backgroundimage.png)'}}>
+      {/* Semi-transparent overlay for better text readability */}
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          {/* <h1 className="text-4xl font-bold text-gray-900 mb-2">
             Monad Swap DApp
-          </h1>
-          <p className="text-lg text-gray-600">
+          </h1> */}
+          {/* <p className="text-lg text-gray-600">
             Decentralized token swapping on Monad Testnet
-          </p>
+          </p> */}
           <div className="mt-4 flex justify-center items-center space-x-4 text-sm text-gray-500">
             <span className="flex items-center">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
               Monad Testnet
             </span>
-            <span className="flex items-center">
+            {/* <span className="flex items-center">
               <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
               Powered by 0x Protocol
-            </span>
+            </span> */}
           </div>
         </header>
 
@@ -56,9 +58,9 @@ export default function Home() {
               0x Protocol
             </a>
           </div>
-          <p className="text-sm">
+          {/* <p className="text-sm">
             Built with Next.js, wagmi, and RainbowKit
-          </p>
+          </p> */}
         </footer>
       </div>
     </div>
