@@ -1,0 +1,3 @@
+interface CaptchaProps {
+  onSuccess: () => void;
+}

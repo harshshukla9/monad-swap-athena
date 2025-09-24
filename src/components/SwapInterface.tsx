@@ -1,39 +1,47 @@
-'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { SwapService, type SwapPrice, type SwapQuote } from '@/lib/swap';
-import { TOKENS, WMON_TOKEN_ADDRESS, USDC_TESTNET_ADDRESS } from '@/lib/constants';
-import { formatUnits, parseUnits } from 'viem';
+import { useState, useEffect, useRef } from "react";
+import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SwapService, type SwapPrice, type SwapQuote } from "@/lib/swap";
+import CaptchaFlow from "./CaptchaFlow";
+import {
+  TOKENS,
+  WMON_TOKEN_ADDRESS,
+  USDC_TESTNET_ADDRESS,
+} from "@/lib/constants";
+import { formatUnits, parseUnits } from "viem";
 
 export default function SwapInterface() {
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const [showCaptcha, setShowCaptcha] = useState(false);
 
-  const [sellAmount, setSellAmount] = useState('');
-  const [buyAmount, setBuyAmount] = useState('');
+  const [sellAmount, setSellAmount] = useState("");
+  const [buyAmount, setBuyAmount] = useState("");
   const [price, setPrice] = useState<SwapPrice | null>(null);
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const [txHash, setTxHash] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const [txHash, setTxHash] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [isSellWMON, setIsSellWMON] = useState(true);
-  
+
   // Token balances
   const [wmonBalance, setWmonBalance] = useState<bigint>(BigInt(0));
   const [usdcBalance, setUsdcBalance] = useState<bigint>(BigInt(0));
-  
+
   // Refs to prevent multiple simultaneous calls
   const fetchingPrice = useRef(false);
   const fetchingBalances = useRef(false);
-  
-  const swapService = publicClient && walletClient 
-    ? new SwapService(publicClient, walletClient)
-    : null;
+
+  const swapService =
+    publicClient && walletClient
+      ? new SwapService(publicClient, walletClient)
+      : null;
 
   // Fetch token balances
   useEffect(() => {
@@ -46,7 +54,7 @@ export default function SwapInterface() {
     const fetchBalances = async () => {
       if (fetchingBalances.current) return;
       fetchingBalances.current = true;
-      
+
       try {
         const [wmon, usdc] = await Promise.all([
           swapService.getTokenBalance(WMON_TOKEN_ADDRESS, address),
@@ -55,7 +63,7 @@ export default function SwapInterface() {
         setWmonBalance(wmon);
         setUsdcBalance(usdc);
       } catch (error) {
-        console.error('Error fetching balances:', error);
+        console.error("Error fetching balances:", error);
         // Don't reset balances on error, just log it
       } finally {
         fetchingBalances.current = false;
@@ -71,16 +79,16 @@ export default function SwapInterface() {
   useEffect(() => {
     if (!swapService || !sellAmount || parseFloat(sellAmount) <= 0) {
       setPrice(null);
-      setBuyAmount('');
+      setBuyAmount("");
       return;
     }
 
     const fetchPrice = async () => {
       if (fetchingPrice.current) return;
       fetchingPrice.current = true;
-      
+
       setIsLoading(true);
-      setError('');
+      setError("");
       try {
         const priceData = await swapService.getPrice(
           sellAmount,
@@ -96,10 +104,10 @@ export default function SwapInterface() {
           )
         );
       } catch (error) {
-        console.error('Error fetching price:', error);
-        setError('Failed to fetch price. Please try again.');
+        console.error("Error fetching price:", error);
+        setError("Failed to fetch price. Please try again.");
         setPrice(null);
-        setBuyAmount('');
+        setBuyAmount("");
       } finally {
         setIsLoading(false);
         fetchingPrice.current = false;
@@ -123,7 +131,7 @@ export default function SwapInterface() {
         setWmonBalance(wmon);
         setUsdcBalance(usdc);
       } catch (err) {
-        console.error('Error refreshing balances on wallet ready:', err);
+        console.error("Error refreshing balances on wallet ready:", err);
       }
     })();
 
@@ -145,7 +153,7 @@ export default function SwapInterface() {
             )
           );
         } catch (err) {
-          console.error('Error refreshing price on wallet ready:', err);
+          console.error("Error refreshing price on wallet ready:", err);
         }
       })();
     }
@@ -155,26 +163,26 @@ export default function SwapInterface() {
     if (!swapService || !price?.issues.allowance?.spender) return;
 
     setIsApproving(true);
-    setError('');
+    setError("");
     try {
       const hash = await swapService.approveToken(
         price.issues.allowance.spender,
         isSellWMON ? WMON_TOKEN_ADDRESS : USDC_TESTNET_ADDRESS
       );
-      console.log('Approval transaction sent:', hash);
-      
+      console.log("Approval transaction sent:", hash);
+
       // Wait for transaction confirmation
       const receipt = await publicClient?.waitForTransactionReceipt({ hash });
-      console.log('Approval transaction confirmed:', receipt);
-      
+      console.log("Approval transaction confirmed:", receipt);
+
       // Wait a bit more for blockchain state to update
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Refresh price to update allowance status - retry up to 3 times
       if (sellAmount) {
         let attempts = 0;
         let priceData;
-        
+
         do {
           attempts++;
           console.log(`Fetching updated price data, attempt ${attempts}`);
@@ -184,19 +192,19 @@ export default function SwapInterface() {
             isSellWMON ? USDC_TESTNET_ADDRESS : WMON_TOKEN_ADDRESS,
             isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
           );
-          
+
           // If allowance is still not updated, wait and try again
           if (priceData.issues.allowance?.actual === "0" && attempts < 3) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await new Promise((resolve) => setTimeout(resolve, 3000));
           }
         } while (priceData.issues.allowance?.actual === "0" && attempts < 3);
-        
+
         setPrice(priceData);
-        console.log('Updated price data after approval:', priceData);
+        console.log("Updated price data after approval:", priceData);
       }
     } catch (error) {
-      console.error('Error approving token:', error);
-      setError('Failed to approve token. Please try again.');
+      console.error("Error approving token:", error);
+      setError("Failed to approve token. Please try again.");
     } finally {
       setIsApproving(false);
     }
@@ -206,9 +214,9 @@ export default function SwapInterface() {
     if (!swapService || !address || !sellAmount) return;
 
     setIsSwapping(true);
-    setError('');
-    setTxHash('');
-    
+    setError("");
+    setTxHash("");
+
     try {
       // Validate balance before proceeding
       const sellAmountBigInt = swapService.parseTokenAmount(
@@ -216,9 +224,18 @@ export default function SwapInterface() {
         isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
       );
       const currentBalance = isSellWMON ? wmonBalance : usdcBalance;
-      
+
       if (sellAmountBigInt > currentBalance) {
-        throw new Error(`Insufficient ${isSellWMON ? 'WMON' : 'USDC'} balance. You have ${formatUnits(currentBalance, isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals)} ${isSellWMON ? 'WMON' : 'USDC'}, but trying to swap ${sellAmount} ${isSellWMON ? 'WMON' : 'USDC'}.`);
+        throw new Error(
+          `Insufficient ${
+            isSellWMON ? "WMON" : "USDC"
+          } balance. You have ${formatUnits(
+            currentBalance,
+            isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
+          )} ${
+            isSellWMON ? "WMON" : "USDC"
+          }, but trying to swap ${sellAmount} ${isSellWMON ? "WMON" : "USDC"}.`
+        );
       }
 
       // Get fresh quote
@@ -233,16 +250,26 @@ export default function SwapInterface() {
 
       // Check for balance issues in the quote
       if (quoteData.issues?.balance) {
-        throw new Error(`Insufficient balance: You have ${formatUnits(BigInt(quoteData.issues.balance.actual), isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals)} ${isSellWMON ? 'WMON' : 'USDC'}, but need ${formatUnits(BigInt(quoteData.issues.balance.expected), isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals)} ${isSellWMON ? 'WMON' : 'USDC'}.`);
+        throw new Error(
+          `Insufficient balance: You have ${formatUnits(
+            BigInt(quoteData.issues.balance.actual),
+            isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
+          )} ${isSellWMON ? "WMON" : "USDC"}, but need ${formatUnits(
+            BigInt(quoteData.issues.balance.expected),
+            isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
+          )} ${isSellWMON ? "WMON" : "USDC"}.`
+        );
       }
 
       // Try EIP-5792 one-click approve + swap first, with fallback to traditional flow
       let hash: `0x${string}`;
       let usedEip5792 = false;
-      
+
       if (quoteData.issues?.allowance?.spender) {
-        console.log('Approval needed. Attempting EIP-5792 batch transaction...');
-        
+        console.log(
+          "Approval needed. Attempting EIP-5792 batch transaction..."
+        );
+
         // Try EIP-5792 first
         try {
           hash = await swapService.approveAndSwapEip5792(
@@ -251,31 +278,36 @@ export default function SwapInterface() {
             quoteData
           );
           usedEip5792 = true;
-          console.log('EIP-5792 batch transaction successful:', hash);
+          console.log("EIP-5792 batch transaction successful:", hash);
         } catch (eipError: any) {
-          console.log('EIP-5792 failed, falling back to traditional approve + swap:', eipError.message);
-          
+          console.log(
+            "EIP-5792 failed, falling back to traditional approve + swap:",
+            eipError.message
+          );
+
           // Fallback to traditional approve + swap
-          console.log('Executing traditional approve transaction...');
+          console.log("Executing traditional approve transaction...");
           const approveHash = await swapService.approveToken(
             quoteData.issues.allowance.spender,
             isSellWMON ? WMON_TOKEN_ADDRESS : USDC_TESTNET_ADDRESS
           );
-          console.log('Approval transaction hash:', approveHash);
-          
+          console.log("Approval transaction hash:", approveHash);
+
           // Wait for approval to be confirmed
-          const approveReceipt = await publicClient?.waitForTransactionReceipt({ hash: approveHash });
-          console.log('Approval confirmed:', approveReceipt?.status);
-          
-          if (approveReceipt?.status !== 'success') {
-            throw new Error('Approval transaction failed');
+          const approveReceipt = await publicClient?.waitForTransactionReceipt({
+            hash: approveHash,
+          });
+          console.log("Approval confirmed:", approveReceipt?.status);
+
+          if (approveReceipt?.status !== "success") {
+            throw new Error("Approval transaction failed");
           }
 
           // Wait a bit more for the allowance to be reflected
           await new Promise((r) => setTimeout(r, 2000));
-          
+
           // Get fresh quote after approval
-          console.log('Getting fresh quote after approval...');
+          console.log("Getting fresh quote after approval...");
           const refreshedQuote = await swapService.getQuote(
             sellAmount,
             address,
@@ -283,37 +315,39 @@ export default function SwapInterface() {
             isSellWMON ? USDC_TESTNET_ADDRESS : WMON_TOKEN_ADDRESS,
             isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
           );
-          
+
           // Check if allowance issue is resolved
           if (refreshedQuote.issues?.allowance?.spender) {
-            throw new Error('Allowance still not sufficient after approval. Please try again.');
+            throw new Error(
+              "Allowance still not sufficient after approval. Please try again."
+            );
           }
-          
-          console.log('Executing swap transaction...');
+
+          console.log("Executing swap transaction...");
           hash = await swapService.executeSwap(refreshedQuote);
         }
       } else {
-        console.log('No approval needed, executing swap directly...');
+        console.log("No approval needed, executing swap directly...");
         hash = await swapService.executeSwap(quoteData);
       }
-      
-      console.log('Swap transaction hash:', hash);
+
+      console.log("Swap transaction hash:", hash);
       setTxHash(hash);
-      
+
       // Wait for transaction and refresh balances
       const receipt = await publicClient?.waitForTransactionReceipt({ hash });
-      console.log('Swap transaction receipt:', receipt?.status);
-      
-      if (receipt?.status !== 'success') {
-        throw new Error('Swap transaction failed');
+      console.log("Swap transaction receipt:", receipt?.status);
+
+      if (receipt?.status !== "success") {
+        throw new Error("Swap transaction failed");
       }
-      
+
       // Reset form
-      setSellAmount('');
-      setBuyAmount('');
+      setSellAmount("");
+      setBuyAmount("");
       setPrice(null);
       setQuote(null);
-      
+
       // Clear balance cache and refresh balances after successful transaction
       if (swapService) {
         swapService.clearBalanceCache(address);
@@ -324,10 +358,9 @@ export default function SwapInterface() {
         setWmonBalance(wmon);
         setUsdcBalance(usdc);
       }
-      
     } catch (error: any) {
-      console.error('Error executing swap:', error);
-      setError(error.message || 'Failed to execute swap. Please try again.');
+      console.error("Error executing swap:", error);
+      setError(error.message || "Failed to execute swap. Please try again.");
     } finally {
       setIsSwapping(false);
     }
@@ -339,21 +372,21 @@ export default function SwapInterface() {
       sellAmount,
       isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
     );
-    
+
     // Check if user has enough balance
     const hasEnoughBalance = isSellWMON
       ? sellAmountBigInt <= wmonBalance
       : sellAmountBigInt <= usdcBalance;
-    
+
     // For allowance, if there was a successful approval, allow swap even if API shows "0"
     // This is a workaround for 0x API delay in reflecting allowance updates
-    const hasAllowance = !price.issues.allowance || 
-                        (price.issues.allowance && 
-                         price.issues.allowance.actual !== "0") ||
-                        // Allow if balance is sufficient and there's no other blocking issue
-                        (hasEnoughBalance && price.issues.simulationIncomplete === false);
-    
-    console.log('canSwap check:', {
+    const hasAllowance =
+      !price.issues.allowance ||
+      (price.issues.allowance && price.issues.allowance.actual !== "0") ||
+      // Allow if balance is sufficient and there's no other blocking issue
+      (hasEnoughBalance && price.issues.simulationIncomplete === false);
+
+    console.log("canSwap check:", {
       isConnected,
       sellAmount,
       hasPrice: !!price,
@@ -363,29 +396,31 @@ export default function SwapInterface() {
       hasEnoughBalance,
       hasAllowance,
       allowanceData: price.issues.allowance,
-      balanceIssue: price.issues.balance
+      balanceIssue: price.issues.balance,
     });
-    
+
     return hasEnoughBalance && hasAllowance;
   };
 
   const needsApproval = () => {
-    const needs = price?.issues.allowance !== null && 
-                  price?.issues.allowance?.actual === "0";
-    console.log('needsApproval check:', {
+    const needs =
+      price?.issues.allowance !== null &&
+      price?.issues.allowance?.actual === "0";
+    console.log("needsApproval check:", {
       allowanceExists: price?.issues.allowance !== null,
       actualValue: price?.issues.allowance?.actual,
-      needsApproval: needs
+      needsApproval: needs,
     });
     return needs;
   };
-
 
   return (
     <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Swap Tokens</h2>
-        <p className="text-gray-600 mt-1">Exchange WMON for USDC on Monad Testnet</p>
+        <p className="text-gray-600 mt-1">
+          Exchange WMON for USDC on Monad Testnet
+        </p>
       </div>
 
       {!isConnected ? (
@@ -438,7 +473,9 @@ export default function SwapInterface() {
                 >
                   MAX
                 </button>
-                <span className="text-gray-600 font-medium">{isSellWMON ? 'WMON' : 'USDC'}</span>
+                <span className="text-gray-600 font-medium">
+                  {isSellWMON ? "WMON" : "USDC"}
+                </span>
               </div>
             </div>
           </div>
@@ -449,14 +486,24 @@ export default function SwapInterface() {
               className="p-2 bg-gray-100 rounded-full cursor-pointer hover:bg-gray-200"
               onClick={() => {
                 setIsSellWMON((v) => !v);
-                setSellAmount('');
-                setBuyAmount('');
+                setSellAmount("");
+                setBuyAmount("");
                 setPrice(null);
               }}
               title="Switch direction"
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              <svg
+                className="w-5 h-5 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
               </svg>
             </div>
           </div>
@@ -475,7 +522,9 @@ export default function SwapInterface() {
                 className="w-full p-4 pr-20 text-lg border border-gray-300 rounded-lg bg-gray-50"
               />
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <span className="text-gray-600 font-medium">{isSellWMON ? 'USDC' : 'WMON'}</span>
+                <span className="text-gray-600 font-medium">
+                  {isSellWMON ? "USDC" : "WMON"}
+                </span>
               </div>
             </div>
           </div>
@@ -485,12 +534,21 @@ export default function SwapInterface() {
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
                 {isSellWMON
-                  ? `Rate: 1 WMON = ${(parseFloat(buyAmount) / parseFloat(sellAmount) || 0).toFixed(6)} USDC`
-                  : `Rate: 1 USDC = ${(parseFloat(buyAmount) / parseFloat(sellAmount) || 0).toFixed(6)} WMON`}
+                  ? `Rate: 1 WMON = ${(
+                      parseFloat(buyAmount) / parseFloat(sellAmount) || 0
+                    ).toFixed(6)} USDC`
+                  : `Rate: 1 USDC = ${(
+                      parseFloat(buyAmount) / parseFloat(sellAmount) || 0
+                    ).toFixed(6)} WMON`}
               </p>
               {/* Debug info */}
               <div className="mt-2 text-xs text-gray-600">
-                <p>Allowance Status: {price.issues.allowance ? `actual: ${price.issues.allowance.actual}` : 'null'}</p>
+                <p>
+                  Allowance Status:{" "}
+                  {price.issues.allowance
+                    ? `actual: ${price.issues.allowance.actual}`
+                    : "null"}
+                </p>
                 {/* {price.issues.balance && (
                   <p className="text-red-600">
                     Balance Issue: Have {formatUnits(
@@ -503,7 +561,7 @@ export default function SwapInterface() {
                     )} {isSellWMON ? 'WMON' : 'USDC'}
                   </p>
                 )} */}
-                <button 
+                <button
                   onClick={async () => {
                     if (swapService && sellAmount) {
                       const newPrice = await swapService.getPrice(
@@ -513,7 +571,7 @@ export default function SwapInterface() {
                         isSellWMON ? TOKENS.WMON.decimals : TOKENS.USDC.decimals
                       );
                       setPrice(newPrice);
-                      console.log('Manual refresh - new price:', newPrice);
+                      console.log("Manual refresh - new price:", newPrice);
                     }
                   }}
                   className="mt-1 text-blue-600 underline hover:text-blue-800"
@@ -534,25 +592,57 @@ export default function SwapInterface() {
           {/* Single Action Button */}
           <div className="space-y-3">
             <button
-              onClick={handleSwap}
+              onClick={() => setShowCaptcha(true)}
               disabled={!canSwap() || isSwapping}
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
             >
-              {isSwapping ? 'Swapping...' : isLoading ? 'Loading...' : 'Swap Tokens'}
+              {isSwapping
+                ? "Swapping..."
+                : isLoading
+                ? "Loading..."
+                : "Swap Tokens"}
             </button>
-            {needsApproval() && (
-              <p className="text-xs text-gray-500 text-center">
-                🚀 Will attempt EIP-5792 one-click approve + swap (fallback to 2-step if unsupported)
-              </p>
-            )}
           </div>
+
+          {/* Captcha Modal/Inline */}
+          {/* Captcha Modal */}
+          {showCaptcha && (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setShowCaptcha(false)} // click outside closes
+              ></div>
+
+              {/* Modal */}
+              <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-md z-10">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+                  Complete Captcha to Continue
+                </h3>
+
+                <CaptchaFlow
+                  onComplete={async () => {
+                    setShowCaptcha(false);
+                    await handleSwap(); // swap only after captcha success
+                  }}
+                />
+
+                <button
+                  onClick={() => setShowCaptcha(false)}
+                  className="mt-4 w-full py-2 px-4 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Transaction Hash */}
           {txHash && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-green-800 text-sm">
-                Transaction successful! 
-                <a 
+                Transaction successful!
+                <a
                   href={`https://testnet.monadscan.com/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
