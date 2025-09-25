@@ -23,7 +23,7 @@ export default function CaptchaFour({ onSuccess }: CaptchaProps) {
     "/five/vinaya.jpg",
   ];
 
-  const solution = [1, 2, 4, 5, 6, 7];
+  const solution = [1, 2, 4, 5, 6];
 
   const toggleSquare = (index: number) => {
     setSelected((prev) =>
@@ -40,6 +40,7 @@ export default function CaptchaFour({ onSuccess }: CaptchaProps) {
 
     if (isCorrect) {
       setFeedback("correct");
+      
       onSuccess();
     } else {
       setFeedback("wrong");
